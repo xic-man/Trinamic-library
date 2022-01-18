@@ -47,7 +47,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 typedef struct {
     uint8_t id;     // motor id
-    uint8_t axis;   // axis index
     uint8_t seq;    // optional motor sequence number (for chained SPI drivers)
     void *cs_pin;   // optional CS pin data for the stepper driver
 } trinamic_motor_t;
@@ -138,4 +137,3 @@ extern TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_
 
 extern void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *datagram);
 extern TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *datagram);
-
