@@ -40,8 +40,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _TMC2209HAL_H_
 
 #include "tmchal.h"
-#include "hal.h"
 
-const tmchal_t *TMC2209_AddMotor (motor_map_t motor, uint8_t address, uint16_t current, uint8_t microsteps, uint8_t r_sense);
+trinamic_config_t *getConfig(TMC2209_t *driver);
+bool isValidMicrosteps(TMC2209_t *driver, uint16_t msteps);
+void setMicrosteps(TMC2209_t *driver, uint16_t msteps);
+void setCurrent(TMC2209_t *driver, uint16_t mA, uint8_t hold_pct);
+uint16_t getCurrent(TMC2209_t *driver);
+TMC_chopconf_t getChopconf(TMC2209_t *driver);
+uint32_t getStallGuardResult(TMC2209_t *driver);
+TMC_drv_status_t getDriverStatus(TMC2209_t *driver);
+TMC_ihold_irun_t getIholdIrun(TMC2209_t *driver);
+uint32_t getDriverStatusRaw(TMC2209_t *driver);
+uint32_t getTStep(TMC2209_t *driver);
+void setTCoolThrs(TMC2209_t *driver, float mm_sec, float steps_mm);
+void setTCoolThrsRaw(TMC2209_t *driver, uint32_t value);
+void stallGuardEnable(TMC2209_t *driver, float feed_rate, float steps_mm, int16_t sensitivity);
+void stealthChopEnable(TMC2209_t *driver);
+void coolStepEnable(TMC2209_t *driver);
+float getTPWMThrs(TMC2209_t *driver, float steps_mm);
+uint32_t getTPWMThrsRaw(TMC2209_t *driver);
+void setTPWMThrs(TMC2209_t *driver, float mm_sec, float steps_mm);
+void stealthChop(TMC2209_t *driver, bool on);
+bool stealthChopGet(TMC2209_t *driver);
+void sg_filter(TMC2209_t *driver, bool val);
+void sg_stall_value(TMC2209_t *driver, int16_t val);
+int16_t get_sg_stall_value(TMC2209_t *driver);
+void coolconf(TMC2209_t *driver, TMC_coolconf_t coolconf);
+void chopper_timing(TMC2209_t *driver, TMC_chopper_timing_t timing);
+uint8_t pwm_scale(TMC2209_t *driver);
+bool vsense(TMC2209_t *driver);
+void TMC2209_Create(TMC2209_t *driver, uint8_t address, uint16_t current, uint8_t microsteps, uint8_t r_sense);
 
 #endif

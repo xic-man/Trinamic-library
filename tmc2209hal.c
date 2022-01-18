@@ -39,123 +39,103 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 
-#include "hal.h"
-
 #include "tmc2209.h"
 #include "tmchal.h"
 
-static TMC2209_t *tmcdriver[6];
-
-static trinamic_config_t *getConfig (uint8_t motor)
-{
-    return &tmcdriver[motor]->config;
+trinamic_config_t *getConfig(TMC2209_t *driver) {
+    return &driver->config;
 }
 
-static bool isValidMicrosteps (uint8_t motor, uint16_t msteps)
-{
+bool isValidMicrosteps(TMC2209_t *driver, uint16_t msteps) {
     return tmc_microsteps_validate(msteps);
 }
 
-static void setMicrosteps (uint8_t motor, uint16_t msteps)
-{
-   TMC2209_SetMicrosteps(tmcdriver[motor], (tmc2209_microsteps_t)msteps);
+void setMicrosteps(TMC2209_t *driver, uint16_t msteps) {
+   TMC2209_SetMicrosteps(driver, (tmc2209_microsteps_t)msteps);
 }
 
-static void setCurrent (uint8_t motor, uint16_t mA, uint8_t hold_pct)
-{
-    TMC2209_SetCurrent(tmcdriver[motor], mA, hold_pct);
+void setCurrent(TMC2209_t *driver, uint16_t mA, uint8_t hold_pct) {
+    TMC2209_SetCurrent(driver, mA, hold_pct);
 }
 
-static uint16_t getCurrent (uint8_t motor)
-{
-    return TMC2209_GetCurrent(tmcdriver[motor]);
+uint16_t getCurrent(TMC2209_t *driver) {
+    return TMC2209_GetCurrent(driver);
 }
 
-static TMC_chopconf_t getChopconf (uint8_t motor)
-{
+TMC_chopconf_t getChopconf(TMC2209_t *driver) {
     TMC_chopconf_t chopconf;
 
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->chopconf);
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->chopconf);
 
-    chopconf.mres = tmcdriver[motor]->chopconf.reg.mres;
-    chopconf.toff = tmcdriver[motor]->chopconf.reg.toff;
-    chopconf.tbl = tmcdriver[motor]->chopconf.reg.tbl;
-    chopconf.hend = tmcdriver[motor]->chopconf.reg.hend;
-    chopconf.hstrt = tmcdriver[motor]->chopconf.reg.hstrt;
+    chopconf.mres = driver->chopconf.reg.mres;
+    chopconf.toff = driver->chopconf.reg.toff;
+    chopconf.tbl = driver->chopconf.reg.tbl;
+    chopconf.hend = driver->chopconf.reg.hend;
+    chopconf.hstrt = driver->chopconf.reg.hstrt;
 
     return chopconf;
 }
 
-static uint32_t getStallGuardResult (uint8_t motor)
-{
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->sg_result);
+uint32_t getStallGuardResult(TMC2209_t *driver) {
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->sg_result);
 
-    return (uint32_t)tmcdriver[motor]->sg_result.reg.result;
+    return (uint32_t)driver->sg_result.reg.result;
 }
 
-static TMC_drv_status_t getDriverStatus (uint8_t motor)
-{
+TMC_drv_status_t getDriverStatus(TMC2209_t *driver) {
     TMC_drv_status_t drv_status = {0};
     TMC2209_status_t status;
 
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->sg_result);
-    status.value = TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->drv_status);
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->sg_result);
+    status.value = TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->drv_status);
 
     drv_status.driver_error = status.driver_error;
-    drv_status.sg_result = tmcdriver[motor]->sg_result.reg.result;
-    drv_status.ot = tmcdriver[motor]->drv_status.reg.ot;
-    drv_status.otpw = tmcdriver[motor]->drv_status.reg.otpw;
-    drv_status.cs_actual = tmcdriver[motor]->drv_status.reg.cs_actual;
-    drv_status.stst = tmcdriver[motor]->drv_status.reg.stst;
-//    drv_status.fsactive = tmcdriver[motor]->drv_status.reg.fsactive;
-    drv_status.ola = tmcdriver[motor]->drv_status.reg.ola;
-    drv_status.olb = tmcdriver[motor]->drv_status.reg.olb;
-    drv_status.s2ga = tmcdriver[motor]->drv_status.reg.s2ga;
-    drv_status.s2gb = tmcdriver[motor]->drv_status.reg.s2gb;
+    drv_status.sg_result = driver->sg_result.reg.result;
+    drv_status.ot = driver->drv_status.reg.ot;
+    drv_status.otpw = driver->drv_status.reg.otpw;
+    drv_status.cs_actual = driver->drv_status.reg.cs_actual;
+    drv_status.stst = driver->drv_status.reg.stst;
+//    drv_status.fsactive = driver->drv_status.reg.fsactive;
+    drv_status.ola = driver->drv_status.reg.ola;
+    drv_status.olb = driver->drv_status.reg.olb;
+    drv_status.s2ga = driver->drv_status.reg.s2ga;
+    drv_status.s2gb = driver->drv_status.reg.s2gb;
 
     return drv_status;
 }
 
-static TMC_ihold_irun_t getIholdIrun (uint8_t motor)
-{
+TMC_ihold_irun_t getIholdIrun(TMC2209_t *driver) {
     TMC_ihold_irun_t ihold_irun;
 
-    ihold_irun.ihold = tmcdriver[motor]->ihold_irun.reg.ihold;
-    ihold_irun.irun = tmcdriver[motor]->ihold_irun.reg.irun;
-    ihold_irun.iholddelay = tmcdriver[motor]->ihold_irun.reg.iholddelay;
+    ihold_irun.ihold = driver->ihold_irun.reg.ihold;
+    ihold_irun.irun = driver->ihold_irun.reg.irun;
+    ihold_irun.iholddelay = driver->ihold_irun.reg.iholddelay;
 
     return ihold_irun;
 }
 
-static uint32_t getDriverStatusRaw (uint8_t motor)
-{
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->drv_status);
+uint32_t getDriverStatusRaw(TMC2209_t *driver) {
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->drv_status);
 
-    return tmcdriver[motor]->drv_status.reg.value;
+    return driver->drv_status.reg.value;
 }
 
-static uint32_t getTStep (uint8_t motor)
-{
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->tstep);
+uint32_t getTStep(TMC2209_t *driver) {
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->tstep);
 
-    return (uint32_t)tmcdriver[motor]->tstep.reg.tstep;
+    return (uint32_t)driver->tstep.reg.tstep;
 }
 
-static void setTCoolThrs (uint8_t motor, float mm_sec, float steps_mm)
-{
-    TMC2209_SetTCOOLTHRS(tmcdriver[motor], mm_sec, steps_mm);
+void setTCoolThrs(TMC2209_t *driver, float mm_sec, float steps_mm) {
+    TMC2209_SetTCOOLTHRS(driver, mm_sec, steps_mm);
 }
 
-static void setTCoolThrsRaw (uint8_t motor, uint32_t value)
-{
-    tmcdriver[motor]->tcoolthrs.reg.tcoolthrs = value;
-    TMC2209_WriteRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->tcoolthrs);
+void setTCoolThrsRaw(TMC2209_t *driver, uint32_t value) {
+    driver->tcoolthrs.reg.tcoolthrs = value;
+    TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->tcoolthrs);
 }
 
-static void stallGuardEnable (uint8_t motor, float feed_rate, float steps_mm, int16_t sensitivity)
-{
-    TMC2209_t *driver = tmcdriver[motor];
-
+void stallGuardEnable(TMC2209_t *driver, float feed_rate, float steps_mm, int16_t sensitivity) {
     driver->gconf.reg.en_spreadcycle = false; // stealthChop on
     TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->gconf);
 
@@ -168,173 +148,101 @@ static void stallGuardEnable (uint8_t motor, float feed_rate, float steps_mm, in
     TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->sgthrs);
 }
 
-static void stealthChopEnable (uint8_t motor)
-{
-    TMC2209_t *driver = tmcdriver[motor];
-
+void stealthChopEnable(TMC2209_t *driver) {
     driver->gconf.reg.en_spreadcycle = false; // stealthChop on
     TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->gconf);
 
     driver->pwmconf.reg.pwm_autoscale = true;
     TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->pwmconf);
 
-    setTCoolThrsRaw(motor, 0);
+    setTCoolThrsRaw(driver, 0);
 }
 
-static void coolStepEnable (uint8_t motor)
-{
-    TMC2209_t *driver = tmcdriver[motor];
-
+void coolStepEnable(TMC2209_t *driver) {
     driver->gconf.reg.en_spreadcycle = true; // stealthChop off
     TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->gconf);
 
     driver->pwmconf.reg.pwm_autoscale = false;
     TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->pwmconf);
 
-    setTCoolThrsRaw(motor, 0);
+    setTCoolThrsRaw(driver, 0);
 }
 
-static float getTPWMThrs (uint8_t motor, float steps_mm)
-{
-    return TMC2209_GetTPWMTHRS(tmcdriver[motor], steps_mm);
+float getTPWMThrs(TMC2209_t *driver, float steps_mm) {
+    return TMC2209_GetTPWMTHRS(driver, steps_mm);
 }
 
-static uint32_t getTPWMThrsRaw (uint8_t motor)
-{
-    return tmcdriver[motor]->tpwmthrs.reg.tpwmthrs;
+uint32_t getTPWMThrsRaw(TMC2209_t *driver) {
+    return driver->tpwmthrs.reg.tpwmthrs;
 }
 
-static void setTPWMThrs (uint8_t motor, float mm_sec, float steps_mm)
-{
-    TMC2209_SetTPWMTHRS(tmcdriver[motor], mm_sec, steps_mm);
+void setTPWMThrs(TMC2209_t *driver, float mm_sec, float steps_mm) {
+    TMC2209_SetTPWMTHRS(driver, mm_sec, steps_mm);
 }
 
-static void stealthChop (uint8_t motor, bool on)
-{
-    tmcdriver[motor]->config.mode = on ? TMCMode_StealthChop : TMCMode_CoolStep;
+void stealthChop(TMC2209_t *driver, bool on) {
+    driver->config.mode = on ? TMCMode_StealthChop : TMCMode_CoolStep;
 
     if(on)
-        stealthChopEnable(motor);
+        stealthChopEnable(driver);
     else
-        coolStepEnable(motor);
+        coolStepEnable(driver);
 }
 
-static bool stealthChopGet (uint8_t motor)
-{
-    return !tmcdriver[motor]->gconf.reg.en_spreadcycle && tmcdriver[motor]->pwmconf.reg.pwm_autoscale;
+bool stealthChopGet(TMC2209_t *driver) {
+    return !driver->gconf.reg.en_spreadcycle && driver->pwmconf.reg.pwm_autoscale;
 }
 
 // coolconf
 
-static void sg_filter (uint8_t motor, bool val)
-{
-//    tmcdriver[motor]->sgthrs.reg.threshold = val;
-//    TMC2209_WriteRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->coolconf);
+void sg_filter(TMC2209_t *driver, bool val) {
+//    driver->sgthrs.reg.threshold = val;
+//    TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->coolconf);
 }
 
-static void sg_stall_value (uint8_t motor, int16_t val)
-{
-    tmcdriver[motor]->sgthrs.reg.threshold = (uint8_t)val;
-    TMC2209_WriteRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->sgthrs);
+void sg_stall_value(TMC2209_t *driver, int16_t val) {
+    driver->sgthrs.reg.threshold = (uint8_t)val;
+    TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->sgthrs);
 }
 
-static int16_t get_sg_stall_value (uint8_t motor)
-{
-    return (int16_t)tmcdriver[motor]->sgthrs.reg.threshold;
+int16_t get_sg_stall_value(TMC2209_t *driver) {
+    return (int16_t)driver->sgthrs.reg.threshold;
 }
 
-static void coolconf (uint8_t motor, TMC_coolconf_t coolconf)
-{
-    TMC2209_t *driver = tmcdriver[motor];
-
+void coolconf(TMC2209_t *driver, TMC_coolconf_t coolconf) {
     driver->coolconf.reg.semin = coolconf.semin;
     driver->coolconf.reg.semax = coolconf.semax;
     driver->coolconf.reg.sedn = coolconf.sedn;
-    TMC2209_WriteRegister(tmcdriver[motor], (TMC2209_datagram_t *)&driver->coolconf);
+    TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->coolconf);
 }
 
 // chopconf
 
-static void chopper_timing (uint8_t motor, TMC_chopper_timing_t timing)
-{
-    TMC2209_t *driver = tmcdriver[motor];
-
+void chopper_timing(TMC2209_t *driver, TMC_chopper_timing_t timing) {
     driver->chopconf.reg.hstrt = timing.hstrt - 1;
     driver->chopconf.reg.hend = timing.hend + 3;
     driver->chopconf.reg.tbl = timing.tbl;
-    TMC2209_WriteRegister(tmcdriver[motor], (TMC2209_datagram_t *)&driver->chopconf);
+    TMC2209_WriteRegister(driver, (TMC2209_datagram_t *)&driver->chopconf);
 }
 
-static uint8_t pwm_scale (uint8_t motor)
-{
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->pwm_scale);
+uint8_t pwm_scale(TMC2209_t *driver) {
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->pwm_scale);
 
-    return tmcdriver[motor]->pwm_scale.reg.pwm_scale_sum;
+    return driver->pwm_scale.reg.pwm_scale_sum;
 }
 
-static bool vsense (uint8_t motor)
-{
-    TMC2209_ReadRegister(tmcdriver[motor], (TMC2209_datagram_t *)&tmcdriver[motor]->chopconf);
+bool vsense(TMC2209_t *driver) {
+    TMC2209_ReadRegister(driver, (TMC2209_datagram_t *)&driver->chopconf);
 
-    return tmcdriver[motor]->chopconf.reg.vsense;
+    return driver->chopconf.reg.vsense;
 }
 
-static const tmchal_t tmc_hal = {
-    .driver = TMC2209,
-    .name = "TMC2209",
-
-    .get_config = getConfig,
-
-    .microsteps_isvalid = isValidMicrosteps,
-    .set_microsteps = setMicrosteps,
-    .set_current = setCurrent,
-    .get_current = getCurrent,
-    .get_chopconf = getChopconf,
-    .get_tstep = getTStep,
-    .get_drv_status = getDriverStatus,
-    .get_drv_status_raw = getDriverStatusRaw,
-    .set_tcoolthrs = setTCoolThrs,
-    .set_tcoolthrs_raw = setTCoolThrsRaw,
-    .set_thigh = NULL,
-    .set_thigh_raw = NULL,
-    .stallguard_enable = stallGuardEnable,
-    .stealthchop_enable = stealthChopEnable,
-    .coolstep_enable = coolStepEnable,
-    .get_sg_result = getStallGuardResult,
-    .get_tpwmthrs = getTPWMThrs,
-    .get_tpwmthrs_raw = getTPWMThrsRaw,
-    .set_tpwmthrs = setTPWMThrs,
-    .get_en_pwm_mode = stealthChopGet,
-    .get_ihold_irun = getIholdIrun,
-
-    .stealthChop = stealthChop,
-    .sg_filter = sg_filter,
-    .sg_stall_value = sg_stall_value,
-    .get_sg_stall_value = get_sg_stall_value,
-    .coolconf = coolconf,
-    .vsense = vsense,
-    .pwm_scale = pwm_scale,
-    .chopper_timing = chopper_timing
-};
-
-const tmchal_t *TMC2209_AddMotor (motor_map_t motor, uint8_t address, uint16_t current, uint8_t microsteps, uint8_t r_sense)
-{
-    bool ok = !!tmcdriver[motor.id];
-
-    if(ok || (ok = (tmcdriver[motor.id] = malloc(sizeof(TMC2209_t))) != NULL)) {
-        TMC2209_SetDefaults(tmcdriver[motor.id]);
-        tmcdriver[motor.id]->config.motor.id = address; // slave address
-        tmcdriver[motor.id]->config.motor.axis = motor.axis;
-        tmcdriver[motor.id]->config.current = current;
-        tmcdriver[motor.id]->config.microsteps = microsteps;
-        tmcdriver[motor.id]->config.r_sense = r_sense;
-        tmcdriver[motor.id]->chopconf.reg.mres = tmc_microsteps_to_mres(microsteps);
-    }
-
-    if(ok && !(ok = TMC2209_Init(tmcdriver[motor.id]))) {
-        free(tmcdriver[motor.id]);
-        tmcdriver[motor.id] = NULL;
-    }
-
-    return ok ? &tmc_hal : NULL;
+void TMC2209_Create(TMC2209_t *driver, uint8_t address, uint16_t current, uint8_t microsteps, uint8_t r_sense) {
+    TMC2209_SetDefaults(driver);
+    driver->config.motor.id = address;
+    driver->config.current = current;
+    driver->config.microsteps = microsteps;
+    driver->config.r_sense = r_sense;
+    driver->chopconf.reg.mres = tmc_microsteps_to_mres(microsteps);
+    TMC2209_Init(driver);
 }
