@@ -36,26 +36,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include <string.h>
-#include <stdio.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/uart.h>
 
 #include "common.h"
 
-__attribute__((weak)) TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *datagram)
-{
-    return 0;
+void tmc_uart_init(void) {
+
 }
 
-__attribute__((weak)) TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *datagram)
-{
-    return 0;
+void tmc_uart_write(trinamic_motor_t driver, TMC_uart_write_datagram_t *datagram) {
 }
 
-__attribute__((weak)) void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *datagram)
-{
-}
-
-__attribute__((weak)) TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *datagram)
-{
+TMC_uart_write_datagram_t *tmc_uart_read(trinamic_motor_t driver, TMC_uart_read_datagram_t *datagram) {
     return NULL;
 }
